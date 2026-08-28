@@ -3,37 +3,13 @@ package main
 import (
 	"crypto/rand"
 	"encoding/json"
+	"database/sql"
 	"fmt"
 	"math/big"
 	"net/http"
-	"sync"
 )
 
-type URLStore struct {
-	mu		sync.RWMutex
-	data	map[string]string
-}
-
-func NewURLStore() *URLStore {
-	return &URLStore{data: make(map[string]string)}
-}
-
-func (s *URLStore) Save(longURL string) string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	code := generateCode(6)
-	s.data[code] = longURL
-	return code
-}
-
-func (s *URLStore) Get(code string) (string, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	url, ok := s.data[code]
-	return url, ok
-}
+var db *sql.DB
 
 func generateCode(n int) string {
 	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -44,8 +20,6 @@ func generateCode(n int) string {
 	}
 	return string(code)
 }
-
-var store = NewURLStore()
 
 type shortenRequest struct {
 	URL string `json:"url"`
@@ -71,12 +45,17 @@ func shortenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	code := store.Save(req.URL)
-	resp := shortenResponse{
+	code := generateCode(6)
+	_, err := db.Exec(`INSERT INTO urls (code, long_url) VALUES ($1, $2)`, code, req.URL)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	resp := shortenResponse {
 		ShortCode: code,
 		ShortURL: fmt.Sprintf("http://localhost:8099/%s", code),
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
@@ -88,17 +67,23 @@ func redirectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	longURL, ok := store.Get(code)
-	if !ok {
+	var longURL string
+	err := db.QueryRow(`SELECT long_url FROM urls WHERE code = $1`, code).Scan(&longURL)
+	if err == sql.ErrNoRows {
 		http.NotFound(w, r)
+		return
+	} else if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	fmt.Println("redirect: %s -> %s", code, longURL)
 	http.Redirect(w, r, longURL, http.StatusFound)
 }
 
 func main() {
+	db = NewDB()
+	defer db.Close()
+
 	http.HandleFunc("/shorten", shortenHandler)
 	http.HandleFunc("/", redirectHandler)
 
