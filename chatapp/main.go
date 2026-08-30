@@ -16,32 +16,32 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func echoHandler(w http.ResponseWriter, r *http.Request) {
+func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println("upgrade failed: ", err)
+		log.Println("upgrade failed:", err)
 		return
 	}
-	defer conn.Close()
 
-	for {
-		msgType, msg, err := conn.ReadMessage()
-		if err != nil {
-			log.Println("read error: ", err)
-			break
-		}
-		log.Printf("received: %s\n", msg)
-
-		if err := conn.WriteMessage(msgType, msg); err != nil {
-			log.Println("write error: ", err)
-			break
-		}
+	client := &Client{
+		hub:  hub,
+		conn: conn,
+		send: make(chan []byte, 256),
 	}
+	client.hub.register <- client
+
+	go client.writePump()
+	go client.readPump()
 }
 
 func main() {
-	http.HandleFunc("/ws", echoHandler)
+	hub := newHub()
+	go hub.run()
 
-	fmt.Println("listening on :8095")
-	log.Fatal(http.ListenAndServe(":8095", nil))
+	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		serveWs(hub, w, r)
+	})
+
+	fmt.Println("listening on :8096")
+	log.Fatal(http.ListenAndServe(":8096", nil))
 }

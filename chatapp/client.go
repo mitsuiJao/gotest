@@ -8,18 +8,18 @@ import (
 )
 
 const (
-	writeWait	= 10 * time.Second
-	pongWait	= 60 * time.Second
-	pingPeriod	= (pongWait * 9) / 10
+	writeWait  = 10 * time.Second
+	pongWait   = 60 * time.Second
+	pingPeriod = (pongWait * 9) / 10
 )
 
 type Client struct {
-	hub		*Hub
-	conn	*websocket.Conn
-	send 	chan []byte
+	hub  *Hub
+	conn *websocket.Conn
+	send chan []byte
 }
 
-func (c *Client) readPump () {
+func (c *Client) readPump() {
 	defer func() {
 		c.hub.unregister <- c
 		c.conn.Close()
@@ -27,12 +27,12 @@ func (c *Client) readPump () {
 
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error {
-		c.conn.SetReadDeadline((time.Now().Add(pongWait))
+		c.conn.SetReadDeadline((time.Now().Add(pongWait)))
 		return nil
 	})
 
 	for {
-		_, msg, err := c.conn.c.conn.ReadMessage()
+		_, msg, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Println("read error: ", err)
@@ -51,9 +51,9 @@ func (c *Client) writePump() {
 	}()
 
 	for {
-		select{
-		case msg, ok := <- c.send:
-			c.conn.c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+		select {
+		case msg, ok := <-c.send:
+			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
@@ -62,9 +62,9 @@ func (c *Client) writePump() {
 				log.Println("write error: ", err)
 				return
 			}
-		
-		case <- ticker.C:
-			c.conn.c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+
+		case <-ticker.C:
+			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
