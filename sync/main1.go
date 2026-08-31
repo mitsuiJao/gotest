@@ -12,7 +12,7 @@ func main() {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			fmt.Println("goroutine: ", id)
+			fmt.Println("goroutine:", id)
 		}(i)
 	}
 
