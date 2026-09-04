@@ -1,36 +1,52 @@
-package chatapp2
+package main
 
-import "log"
+import (
+	"context"
+	"log"
+)
 
 type Hub struct {
 	clients    map[*Client]bool
 	register   chan *Client
 	unregister chan *Client
 	broadcast  chan []byte
+	ctx        context.Context
 }
 
-func newHub() *Hub {
+func newHub(ctx context.Context) *Hub {
 	return &Hub{
 		clients:    make(map[*Client]bool),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		broadcast:  make(chan []byte),
+		ctx:        ctx,
+	}
+}
+
+func disconnect(h *Hub, c *Client) {
+	if _, ok := h.clients[c]; ok {
+		delete(h.clients, c)
+		close(c.send)
 	}
 }
 
 func (h *Hub) run() {
 	for {
 		select {
+		case <-h.ctx.Done():
+			for c := range h.clients {
+				disconnect(h, c)
+			}
+			log.Println("stop")
+			return
+
 		case client := <-h.register:
 			h.clients[client] = true
 			log.Printf("client registerd (total: %d)\n", len(h.clients))
 
 		case client := <-h.unregister:
-			if _, ok := h.clients[client]; ok {
-				delete(h.clients, client)
-				close(client.send)
-				log.Printf("client unregistered (total: %d)", len(h.clients))
-			}
+			disconnect(h, client)
+			log.Printf("client unregistered (total: %d)", len(h.clients))
 
 		case msg := <-h.broadcast:
 			for client := range h.clients {

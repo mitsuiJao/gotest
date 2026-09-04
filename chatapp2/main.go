@@ -1,9 +1,13 @@
-package chatapp2
+package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/gorilla/websocket"
 )
@@ -35,13 +39,22 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	hub := newHub()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	hub := newHub(ctx)
 	go hub.run()
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(hub, w, r)
 	})
 
-	fmt.Println("listening on")
-	log.Fatal(http.ListenAndServe(":8096", nil))
+	fmt.Println("listening on :8096")
+	srv := &http.Server{
+		Addr: ":8096",
+	}
+	go srv.ListenAndServe()
+	<-ctx.Done()
+
+	srv.Shutdown(context.Background())
 }
