@@ -28,7 +28,7 @@ func newRoom(parent context.Context, id string) *Room {
 	}
 }
 
-func disconnect(r *Room, c *Client) {
+func (r *Room) disconnect(c *Client) {
 	if _, ok := r.clients[c]; ok {
 		delete(r.clients, c)
 		close(c.send)
@@ -43,7 +43,7 @@ func (r *Room) run() {
 		select {
 		case <-r.ctx.Done():
 			for c := range r.clients {
-				disconnect(r, c)
+				r.disconnect(c)
 			}
 			log.Println("stop")
 			return
@@ -53,7 +53,7 @@ func (r *Room) run() {
 			log.Printf("client registerd (total: %d)\n", len(r.clients))
 
 		case client := <-r.unregister:
-			disconnect(r, client)
+			r.disconnect(client)
 			log.Printf("client unregistered (total: %d)", len(r.clients))
 
 		case msg := <-r.broadcast:

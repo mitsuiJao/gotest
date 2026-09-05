@@ -14,6 +14,7 @@ const (
 )
 
 type Client struct {
+	name string
 	room *Room
 	conn *websocket.Conn
 	send chan []byte
@@ -39,7 +40,7 @@ func (c *Client) readPump() {
 			}
 			break
 		}
-		c.room.broadcast <- msg
+		c.room.broadcast <- append([]byte("[ "+c.name+"] "), msg...)
 	}
 }
 

@@ -20,7 +20,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func serveWs(hub *Room, w http.ResponseWriter, r *http.Request) {
+func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println("upgrade failed:", err)
@@ -28,17 +28,24 @@ func serveWs(hub *Room, w http.ResponseWriter, r *http.Request) {
 	}
 
 	conn.WriteMessage(websocket.TextMessage, []byte("room id: "))
-
-	_, msg, err := conn.ReadMessage()
+	_, msg1, err := conn.ReadMessage()
 	if err != nil {
 		conn.Close()
 		return
 	}
-	roomID := string(msg)
+	roomID := string(msg1)
 
 	room := hub.getOrCreateRoom(roomID)
 
+	conn.WriteMessage(websocket.TextMessage, []byte("yourname: "))
+	_, msg2, err := conn.ReadMessage()
+	if err != nil {
+		conn.Close()
+		return
+	}
+
 	client := &Client{
+		name: string(msg2),
 		room: room,
 		conn: conn,
 		send: make(chan []byte, 256),
@@ -53,8 +60,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	hub := newRoom(ctx)
-	go hub.run()
+	hub := newHub(ctx)
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(hub, w, r)
