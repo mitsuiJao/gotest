@@ -27,12 +27,23 @@ func serveWs(hub *Room, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	conn.WriteMessage(websocket.TextMessage, []byte("room id: "))
+
+	_, msg, err := conn.ReadMessage()
+	if err != nil {
+		conn.Close()
+		return
+	}
+	roomID := string(msg)
+
+	room := hub.getOrCreateRoom(roomID)
+
 	client := &Client{
-		hub:  hub,
+		room: room,
 		conn: conn,
 		send: make(chan []byte, 256),
 	}
-	client.hub.register <- client
+	client.room.register <- client
 
 	go client.writePump()
 	go client.readPump()

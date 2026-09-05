@@ -14,14 +14,14 @@ const (
 )
 
 type Client struct {
-	hub  *Room
+	room *Room
 	conn *websocket.Conn
 	send chan []byte
 }
 
 func (c *Client) readPump() {
 	defer func() {
-		c.hub.unregister <- c
+		c.room.unregister <- c
 		c.conn.Close()
 	}()
 
@@ -39,7 +39,7 @@ func (c *Client) readPump() {
 			}
 			break
 		}
-		c.hub.broadcast <- msg
+		c.room.broadcast <- msg
 	}
 }
 

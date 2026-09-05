@@ -6,20 +6,25 @@ import (
 )
 
 type Room struct {
+	id         string
 	clients    map[*Client]bool
 	register   chan *Client
 	unregister chan *Client
 	broadcast  chan []byte
 	ctx        context.Context
+	cancel     context.CancelFunc
 }
 
-func newRoom(ctx context.Context) *Room {
+func newRoom(parent context.Context, id string) *Room {
+	ctx, cancel := context.WithCancel(parent)
 	return &Room{
+		id:         id,
 		clients:    make(map[*Client]bool),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		broadcast:  make(chan []byte),
 		ctx:        ctx,
+		cancel:     cancel,
 	}
 }
 
@@ -27,6 +32,9 @@ func disconnect(r *Room, c *Client) {
 	if _, ok := r.clients[c]; ok {
 		delete(r.clients, c)
 		close(c.send)
+		if len(r.clients) == 0 {
+			r.cancel()
+		}
 	}
 }
 
