@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package calc;
+
+option go_package = "example.com/calc/pb";
+
+message TwoNumbers {
+    int64 a = 1;
+    int64 b = 2;
+}
+
+message Result {
+    int64 valude = 1;
+}
+
+message CountUpRequest {
+    int64 from = 1;
+    int64 to = 2;
+}
+
+service CalcService {
+    rpc Add(TwoNumbers) returns (Result);
+    rpc Multiply(TwoNumbers) returns (Result);
+    rpc CountUp(CountUpRequest) returns (stream Result);
+}
