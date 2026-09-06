@@ -10,7 +10,7 @@ import (
 )
 
 type server struct {
-	pb.UnimplementeCalcServiceServer
+	pb.UnimplementedCalcServiceServer
 }
 
 func (s *server) Add(ctx context.Context, req *pb.TwoNumbers) (*pb.Result, error) {
