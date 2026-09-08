@@ -18,8 +18,14 @@ message CountUpRequest {
     int64 to = 2;
 }
 
+message SumResult {
+    int64 total = 1;
+}
+
 service CalcService {
     rpc Add(TwoNumbers) returns (Result);
     rpc Multiply(TwoNumbers) returns (Result);
     rpc CountUp(CountUpRequest) returns (stream Result);
+    rpc Sum(stream TwoNumbers) returns (SumResult);
 }
+

@@ -22,6 +22,7 @@ const (
 	CalcService_Add_FullMethodName      = "/calc.CalcService/Add"
 	CalcService_Multiply_FullMethodName = "/calc.CalcService/Multiply"
 	CalcService_CountUp_FullMethodName  = "/calc.CalcService/CountUp"
+	CalcService_Sum_FullMethodName      = "/calc.CalcService/Sum"
 )
 
 // CalcServiceClient is the client API for CalcService service.
@@ -31,6 +32,7 @@ type CalcServiceClient interface {
 	Add(ctx context.Context, in *TwoNumbers, opts ...grpc.CallOption) (*Result, error)
 	Multiply(ctx context.Context, in *TwoNumbers, opts ...grpc.CallOption) (*Result, error)
 	CountUp(ctx context.Context, in *CountUpRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Result], error)
+	Sum(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[TwoNumbers, SumResult], error)
 }
 
 type calcServiceClient struct {
@@ -80,6 +82,19 @@ func (c *calcServiceClient) CountUp(ctx context.Context, in *CountUpRequest, opt
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type CalcService_CountUpClient = grpc.ServerStreamingClient[Result]
 
+func (c *calcServiceClient) Sum(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[TwoNumbers, SumResult], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &CalcService_ServiceDesc.Streams[1], CalcService_Sum_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[TwoNumbers, SumResult]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type CalcService_SumClient = grpc.ClientStreamingClient[TwoNumbers, SumResult]
+
 // CalcServiceServer is the server API for CalcService service.
 // All implementations must embed UnimplementedCalcServiceServer
 // for forward compatibility.
@@ -87,6 +102,7 @@ type CalcServiceServer interface {
 	Add(context.Context, *TwoNumbers) (*Result, error)
 	Multiply(context.Context, *TwoNumbers) (*Result, error)
 	CountUp(*CountUpRequest, grpc.ServerStreamingServer[Result]) error
+	Sum(grpc.ClientStreamingServer[TwoNumbers, SumResult]) error
 	mustEmbedUnimplementedCalcServiceServer()
 }
 
@@ -105,6 +121,9 @@ func (UnimplementedCalcServiceServer) Multiply(context.Context, *TwoNumbers) (*R
 }
 func (UnimplementedCalcServiceServer) CountUp(*CountUpRequest, grpc.ServerStreamingServer[Result]) error {
 	return status.Error(codes.Unimplemented, "method CountUp not implemented")
+}
+func (UnimplementedCalcServiceServer) Sum(grpc.ClientStreamingServer[TwoNumbers, SumResult]) error {
+	return status.Error(codes.Unimplemented, "method Sum not implemented")
 }
 func (UnimplementedCalcServiceServer) mustEmbedUnimplementedCalcServiceServer() {}
 func (UnimplementedCalcServiceServer) testEmbeddedByValue()                     {}
@@ -174,6 +193,13 @@ func _CalcService_CountUp_Handler(srv interface{}, stream grpc.ServerStream) err
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type CalcService_CountUpServer = grpc.ServerStreamingServer[Result]
 
+func _CalcService_Sum_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(CalcServiceServer).Sum(&grpc.GenericServerStream[TwoNumbers, SumResult]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type CalcService_SumServer = grpc.ClientStreamingServer[TwoNumbers, SumResult]
+
 // CalcService_ServiceDesc is the grpc.ServiceDesc for CalcService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -195,6 +221,11 @@ var CalcService_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "CountUp",
 			Handler:       _CalcService_CountUp_Handler,
 			ServerStreams: true,
+		},
+		{
+			StreamName:    "Sum",
+			Handler:       _CalcService_Sum_Handler,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "calc.proto",

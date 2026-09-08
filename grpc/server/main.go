@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"log"
 	"net"
 
@@ -26,6 +27,19 @@ func (s *server) CountUp(req *pb.CountUpRequest, stream pb.CalcService_CountUpSe
 		}
 	}
 	return nil
+}
+func (s *server) Sum(stream pb.CalcService_SumServer) error {
+	var total int64
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			return stream.SendAndClose(&pb.SumResult{Total: total})
+		}
+		if err != nil {
+			return err
+		}
+		total += req.A + req.B
+	}
 }
 
 func main() {
